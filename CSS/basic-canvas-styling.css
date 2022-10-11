@@ -1,0 +1,11 @@
+#canvas {
+    width: calc(100vw - 50px);
+    height: calc(100vh - 50px);
+    border: solid #000000 5px
+}
+
+#small-canvas {
+    width: calc(100px);
+    height: calc(100px);
+    border: solid #000000 5px
+}
