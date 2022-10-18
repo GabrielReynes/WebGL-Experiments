@@ -17,6 +17,20 @@ export function vertexAttribPoint(gl, positionAttributeLocation, nbDimensions = 
 }
 
 /**
+ * Dumps the vertex attribution bound buffer data onto the defined position attribute location.
+ * This needs to be called once for each vertex attribution.
+ * @param gl The used webGl context
+ * @param positionAttributeLocation The positional attribute onto which write the buffer data
+ * @param nbDimensions Number of dimensions of the buffer's data. (default 2)
+ */
+export function dumpBoundBuffer(gl, positionAttributeLocation, nbDimensions = 2) {
+    // set up our attributes to tell WebGL how to pull
+    // the data from the buffer above to the attribute
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    vertexAttribPoint(gl, positionAttributeLocation, nbDimensions);
+}
+
+/**
  *  Creates a webGl buffer from a given array of fixed data type or a predefined byte size.
  * @param gl The used webGl context.
  * @param sizeOrData The data to be copied onto the buffer, or its predefined size.
@@ -38,15 +52,12 @@ export function makeBuffer(gl, sizeOrData, usage = gl.STATIC_DRAW) {
  * @param gl the webGl context used.
  * @param sizeOrData The size or data to be applied to the buffer.
  * @param positionAttributeLocation The positional attribute onto which write the buffer data
- * @param nbDimensions (default 2)
+ * @param nbDimensions Number of dimensions of the buffer's data. (default 2)
  * @returns {WebGLBuffer} The created buffer.
  */
 export function makeReadableVertexBuffer(gl, sizeOrData, positionAttributeLocation, nbDimensions = 2) {
     const buf = makeBuffer(gl, sizeOrData);
-    // set up our attributes to tell WebGL how to pull
-    // the data from the buffer above to the attribute
-    gl.enableVertexAttribArray(positionAttributeLocation);
-    vertexAttribPoint(gl, positionAttributeLocation, nbDimensions);
+    dumpBoundBuffer(gl, positionAttributeLocation, nbDimensions);
     return buf;
 }
 
@@ -66,8 +77,8 @@ function linkProgram(gl, program) {
 }
 
 /**
- * Utility function allowing us to generate a basic webGl program object and attach the shaders generated from the 
- * given paths corresponding files. 
+ * Utility function allowing us to generate a basic webGl program object and attach the shaders generated from the
+ * given paths corresponding files.
  * @param gl
  * @param vertexShaderPath The relative path towards the vertex shader file
  * @param fragmentShaderPath The relative path towards the fragment shader file

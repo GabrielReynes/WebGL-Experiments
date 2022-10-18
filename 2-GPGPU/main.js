@@ -30,7 +30,7 @@ function main(canvasID) {
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     
-    const a = [1, 2, 3, 4, 5, 6];
+    const a = [1, 2, 3, 4, 5, 7];
     const b = [3, 6, 9, 12, 15, 18];
 
     // put data in buffers
