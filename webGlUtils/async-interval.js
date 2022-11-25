@@ -9,8 +9,8 @@ export async function runAsyncInterval(cb, interval, intervalIndex) {
 
 export function setAsyncInterval(cb, interval) {
     if (cb && typeof cb === "function") {
-        const intervalIndex = asyncIntervals.length;
-        asyncIntervals.push(true);
+        const intervalIndex = ~(~asyncIntervals.indexOf(false) || ~asyncIntervals.length);
+        asyncIntervals[intervalIndex] = true;
         runAsyncInterval(cb, interval, intervalIndex);
         return intervalIndex;
     } else {

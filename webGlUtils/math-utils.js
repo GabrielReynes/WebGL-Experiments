@@ -378,9 +378,9 @@ let m3 = {
      */
     projection(width, height, pixelPerUnit = 1) {
         return [
-            2 * pixelPerUnit / width, 0, 0,
-            0, 2 * pixelPerUnit / height, 0,
-            -1, -1, 1,
+            2 * pixelPerUnit / width,   0,                          0,
+            0,                          2 * pixelPerUnit / height,  0,
+            -1,                         -1,                         1,
         ];
     },
 
@@ -390,8 +390,8 @@ let m3 = {
      */
     translation(tx, ty) {
         return [
-            1, 0, 0,
-            0, 1, 0,
+            1,  0,  0,
+            0,  1,  0,
             tx, ty, 1,
         ];
     },
@@ -403,9 +403,9 @@ let m3 = {
         const c = Math.cos(angleInRadians);
         const s = Math.sin(angleInRadians);
         return [
-            c, -s, 0,
-            s, c, 0,
-            0, 0, 1,
+            c,  -s,  0,
+            s,  c,   0,
+            0,  0,   1,
         ];
     },
 
@@ -415,9 +415,9 @@ let m3 = {
      */
     scaling(sx, sy) {
         return [
-            sx, 0, 0,
-            0, sy, 0,
-            0, 0, 1,
+            sx, 0,  0,
+            0,  sy, 0,
+            0,  0,  1,
         ];
     },
 
@@ -461,8 +461,8 @@ let m3 = {
     flipX() {
         return [
             -1, 0, 0,
-            0, 1, 0,
-            1, 0, 1,
+             0, 1, 0,
+             1, 0, 1,
         ];
     },
     /**
@@ -471,7 +471,7 @@ let m3 = {
     flipY() {
         return [
             1, 0, 0,
-            0, -1, 0,
+            0,-1, 0,
             0, 1, 1,
         ];
     },

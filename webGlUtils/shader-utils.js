@@ -3,15 +3,8 @@
  * @param filePath
  * @returns The raw file content, or *null* if an error was raised during the file request.
  */
-function loadFile(filePath) {
-    let result = null;
-    const xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", filePath, false);
-    xmlhttp.send();
-    if (xmlhttp.status===200) {
-        result = xmlhttp.responseText;
-    }
-    return result;
+async function loadFile(filePath) {
+    return await (await fetch(filePath)).text();
 }
 
 /**
@@ -21,7 +14,7 @@ function loadFile(filePath) {
  * @param source
  * @returns {WebGLShader}
  */
-function createShader(gl, type, source) {
+export function createShader(gl, type, source) {
     // Creates a shader object
     const shader = gl.createShader(type);
     // Attach the source file to the shader object
@@ -46,6 +39,6 @@ function createShader(gl, type, source) {
  * @param filePath the relative path to the shader file.
  * @returns {WebGLShader}
  */
-export function readShaderFile(gl, type, filePath) {
-    return createShader(gl, type, loadFile(filePath));
+export async function readShaderFile(gl, type, filePath) {
+    return createShader(gl, type, await loadFile(filePath));
 }

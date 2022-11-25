@@ -84,9 +84,9 @@ function linkProgram(gl, program) {
  * @param fragmentShaderPath The relative path towards the fragment shader file
  * @returns {WebGLProgram}
  */
-function createProgram(gl, vertexShaderPath, fragmentShaderPath) {
-    const vertexShader = readShaderFile(gl, gl.VERTEX_SHADER, vertexShaderPath);
-    const fragmentShader = readShaderFile(gl, gl.FRAGMENT_SHADER, fragmentShaderPath);
+async function createProgram(gl, vertexShaderPath, fragmentShaderPath) {
+    const vertexShader = await readShaderFile(gl, gl.VERTEX_SHADER, vertexShaderPath);
+    const fragmentShader = await readShaderFile(gl, gl.FRAGMENT_SHADER, fragmentShaderPath);
     const program = gl.createProgram();
     gl.attachShader(program, vertexShader);
     gl.attachShader(program, fragmentShader);
@@ -101,8 +101,8 @@ function createProgram(gl, vertexShaderPath, fragmentShaderPath) {
  * @param fragmentShaderPath The relative path towards the fragment shader file
  * @returns {WebGLProgram}
  */
-export function createProgramFrom(gl, vertexShaderPath, fragmentShaderPath) {
-    const program = createProgram(gl, vertexShaderPath, fragmentShaderPath);
+export async function createProgramFrom(gl, vertexShaderPath, fragmentShaderPath) {
+    const program = await createProgram(gl, vertexShaderPath, fragmentShaderPath);
     linkProgram(gl, program);
     return program;
 }
@@ -118,8 +118,8 @@ export function createProgramFrom(gl, vertexShaderPath, fragmentShaderPath) {
  * @see https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext/transformFeedbackVaryings
  * @returns {WebGLProgram}
  */
-export function createComputeProgramFrom(gl, vertexShaderPath, fragmentShaderPath, varyings, bufferMode = gl.SEPARATE_ATTRIBS) {
-    const program = createProgram(gl, vertexShaderPath, fragmentShaderPath);
+export async function createComputeProgramFrom(gl, vertexShaderPath, fragmentShaderPath, varyings, bufferMode = gl.SEPARATE_ATTRIBS) {
+    const program = await createProgram(gl, vertexShaderPath, fragmentShaderPath);
     gl.transformFeedbackVaryings(program, varyings, bufferMode);
     linkProgram(gl, program);
     return program;

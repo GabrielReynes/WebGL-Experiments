@@ -1,3 +1,5 @@
+// TODO: DOC
+
 function fetchLocation(programBoundFetch, locationContainer, prefix = "") {
     for (const [key, value] of Object.entries(locationContainer)) {
         const variableName = `${prefix}${key}`;
@@ -15,7 +17,7 @@ export function fetchUniformLocations(gl, program, locationContainer) {
 }
 
 function nameArrayToContainer(nameArray) {
-    return Object.fromEntries(nameArray.flatMap(elm => [elm, undefined]));
+    return Object.fromEntries(nameArray.map(elm => [elm, undefined]));
 }
 
 export function getAttributeLocations(gl, program, attributesNames) {
