@@ -1,7 +1,7 @@
 import {createProgramFrom, makeBuffer, vertexAttribPoint} from "../webGlUtils/program-utils.js";
 import {resizeCanvas} from "../webGlUtils/canvas-utils.js";
 
-function main(canvasID) {
+async function main(canvasID) {
     let domCanvas = document.getElementById(canvasID);
     let gl = domCanvas.getContext("webgl2");
     if (!gl) {
@@ -13,7 +13,7 @@ function main(canvasID) {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, domCanvas.width, domCanvas.height);
 
-    const program = createProgramFrom(gl,
+    const program = await createProgramFrom(gl,
         "shaders/basic-vertex-shader.vert",
         "shaders/basic-fragment-shader.frag");
 
@@ -35,10 +35,10 @@ function main(canvasID) {
     // and make it the one we're currently working with
     gl.bindVertexArray(vao);
 
-    // Turn on the attribute
+    // Turn on the buffer attribution for this attribute.
     gl.enableVertexAttribArray(positionAttributeLocation);
 
-    vertexAttribPoint(gl, positionAttributeLocation);
+    vertexAttribPoint(gl, positionAttributeLocation, 2);
 
     // Clear the canvas
     gl.clearColor(0, 0, 0, 0);
@@ -51,4 +51,4 @@ function main(canvasID) {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-main("canvas");
+await main("canvas");

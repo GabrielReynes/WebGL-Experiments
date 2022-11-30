@@ -1,4 +1,3 @@
-import {createShader} from "../webGlUtils/shader-utils.js";
 import {resizeCanvas} from "../webGlUtils/canvas-utils.js";
 import {createProgramFrom} from "../webGlUtils/program-utils.js";
 import {getAttributeLocations} from "../webGlUtils/attribute-location-utils.js";
@@ -9,6 +8,7 @@ async function main() {
 
     resizeCanvas(gl.canvas, 1);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.enable(gl.DEPTH_TEST);
 
     const program = await createProgramFrom(gl,
         './shaders/simple-vertex-shader.vert',
@@ -18,8 +18,9 @@ async function main() {
 
     let projectionMatrixUniformLocation = gl.getUniformLocation(program, 'u_projectionMatrix');
 
-    let attributesLocations = getAttributeLocations(gl, program, ['a_position', 'a_color', 'a_transformMatrix']);
+    let attributesLocations = getAttributeLocations(gl, program, ['a_position', 'a_color', 'a_transformMatrix', 'a_depth']);
 
+    const NB_INSTANCES = 1_000;
     const WIDTH = 100, HEIGHT = 100;
     gl.uniformMatrix3fv(projectionMatrixUniformLocation, false, m3.projection(WIDTH, HEIGHT));
 
@@ -48,7 +49,7 @@ async function main() {
     gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
     gl.vertexAttribPointer(attributesLocations['a_color'], 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(attributesLocations['a_color']);
-    gl.vertexAttribDivisor(attributesLocations['a_color'], 34);
+    gl.vertexAttribDivisor(attributesLocations['a_color'], Math.ceil(NB_INSTANCES / 3));
 
     function randomTransformMatrix() {
         const maxScale = 10;
@@ -58,7 +59,7 @@ async function main() {
         return matrix;
     }
 
-    let transformMatrices = new Float32Array(new Array(100).fill().flatMap(randomTransformMatrix));
+    let transformMatrices = new Float32Array(new Array(NB_INSTANCES).fill().flatMap(randomTransformMatrix));
     let transformMatrixBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, transformMatrixBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, transformMatrices, gl.STATIC_DRAW);
@@ -76,8 +77,19 @@ async function main() {
     gl.vertexAttribDivisor(transformMatrixLocation + 1, 1);
     gl.vertexAttribDivisor(transformMatrixLocation + 2, 1);
 
-    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, 100);
+    let depths = new Float32Array(NB_INSTANCES).map(() => Math.random() * 2 - 1);
+    let depthBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, depthBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, depths, gl.STATIC_DRAW);
+
+    let depthAttributeLocation = attributesLocations['a_depth'];
+    gl.vertexAttribPointer(depthAttributeLocation, 1, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(depthAttributeLocation);
+    gl.vertexAttribDivisor(depthAttributeLocation, 1);
+
+    gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, NB_INSTANCES);
+
+
 }
 
-
-main();
+await main();

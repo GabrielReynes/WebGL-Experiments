@@ -4,7 +4,7 @@ import {
     makeBuffer, makeReadableVertexBuffer,
 } from "../webGlUtils/program-utils.js";
 
-function main(canvasID) {
+async function main(canvasID) {
     let domCanvas = document.getElementById(canvasID);
     let gl = domCanvas.getContext("webgl2");
     if (!gl) {
@@ -16,7 +16,7 @@ function main(canvasID) {
     // Tell WebGL how to convert from clip space to pixels
     gl.viewport(0, 0, domCanvas.width, domCanvas.height);
     
-    const program = createComputeProgramFrom(gl,
+    const program = await createComputeProgramFrom(gl,
         "shaders/math-operations-vertex-shader.vert",
         "shaders/math-operation-fragment-shader.frag",
         ["sum", "difference", "product"]);
@@ -92,4 +92,4 @@ function log(...args) {
     document.body.appendChild(elem);
 }
 
-main("small-canvas");
+await main("small-canvas");

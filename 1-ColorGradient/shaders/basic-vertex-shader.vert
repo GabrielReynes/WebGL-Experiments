@@ -1,6 +1,7 @@
 #version 300 es
 
 in vec4 a_position;
+
 out vec4 v_color;
 
 void main() {
