@@ -1,16 +1,16 @@
 import {
     createComputeProgramFrom,
-    createProgramFrom, dumpBoundBuffer,
+    createProgramFrom,
 } from "../webGlUtils/program-utils.js";
 import {resizeCanvas} from "../webGlUtils/canvas-utils.js";
 import {m3} from "../webGlUtils/math-utils.js";
-import {getBufferSubDataAsync} from "../webGlUtils/fence-sync-utils.js";
 import {randrange} from "../webGlUtils/random-utils.js";
+import {Color} from "../webGlUtils/color-utils.js";
 
 
 async function main(canvasId, nbAgents) {
     const domCanvas = document.getElementById(canvasId);
-    const gl = domCanvas.getContext("webgl2", {preserveDrawingBuffer: true});
+    const gl = domCanvas.getContext("webgl2");
     if (!gl) {
         console.error("WebGl2 context not found");
         return;
@@ -92,7 +92,7 @@ async function main(canvasId, nbAgents) {
     const particleDisplayMatrixUniformLocation = gl.getUniformLocation(particleDisplayProgram, "u_matrix");
     const particleDisplayColorUniformLocation = gl.getUniformLocation(particleDisplayProgram, "u_color");
     gl.uniformMatrix3fv(particleDisplayMatrixUniformLocation, false, canvasToClipSpaceMatrix);
-    gl.uniform4f(particleDisplayColorUniformLocation, 1, 1, 1, 1);
+    gl.uniform4f(particleDisplayColorUniformLocation, ...Object.values(Color.green));
 
     const particleDisplayPositionAttributeLocation = gl.getUniformLocation(particleDisplayProgram, "a_position");
 
@@ -118,18 +118,17 @@ async function main(canvasId, nbAgents) {
         // bind the buffers to the transform feedback
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, outputBuffer);
         // no need to call the fragment shader
-        gl.enable(gl.RASTERIZER_DISCARD);
+        // gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS);
         gl.drawArrays(gl.POINTS, 0, nbAgents);
         gl.endTransformFeedback();
         // turn on using fragment shaders again
-        gl.disable(gl.RASTERIZER_DISCARD);
+        // gl.disable(gl.RASTERIZER_DISCARD);
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
 
 
         gl.useProgram(particleDisplayProgram);
         gl.bindVertexArray(displayVAO);
-        gl.clear(gl.COLOR_BUFFER_BIT);
 
         if (resized) {
             canvasToClipSpaceMatrix = m3.projection(domCanvas.width, domCanvas.height);
@@ -155,4 +154,4 @@ async function main(canvasId, nbAgents) {
     animate();
 }
 
-await main("canvas", 1e3);
+await main("canvas", 1e5);

@@ -4,10 +4,6 @@ export const Color = {
             r, g, b, a,
         };
     },
-    setProgramColor(gl, attributeLocation, color) {
-        debugger;
-        gl.uniform4f(attributeLocation, color.r, color.g, color.b, color.a);
-    },
     get red() {
         return this.create(1, 0, 0);
     },
@@ -19,5 +15,8 @@ export const Color = {
     },
     get white() {
         return this.create(1, 1, 1);
+    },
+    get black() {
+        return this.create(0, 0, 0);
     },
 };

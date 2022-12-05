@@ -1,95 +1,52 @@
 import {resizeCanvas} from "../webGlUtils/canvas-utils.js";
-import {
-    createComputeProgramFrom,
-    makeBuffer, makeReadableVertexBuffer,
-} from "../webGlUtils/program-utils.js";
+import {AntHandling} from "./js/ant-handling.js";
+import {AntDisplay} from "./js/ant-display.js";
+import {TextureDisplay} from "./js/texture-display.js";
+import {Color} from "../webGlUtils/color-utils.js";
+import {TextureBlur} from "./js/texture-blur.js";
+import {TextureDecay} from "./js/texture-decay.js";
 
-function main(canvasID) {
-    let domCanvas = document.getElementById(canvasID);
-    let gl = domCanvas.getContext("webgl2");
+const ANT_SPEED = 100.0;
+const DECAY_FACTOR = 0.9;
+const BLUR_PASS = 1;
+
+async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight) {
+    let canvas = document.getElementById(canvasId);
+    let gl = canvas.getContext("webgl2");
+
     if (!gl) {
-        console.error("WebGL2 Context not found");
+        console.error("WebGl2 Context could not be retrieve from th page's Canvas");
         return;
     }
 
-    resizeCanvas(domCanvas, window.devicePixelRatio);
-    // Tell WebGL how to convert from clip space to pixels
-    gl.viewport(0, 0, domCanvas.width, domCanvas.height);
-    
-    const program = createComputeProgramFrom(gl,
-        "shaders/math-operations-vertex-shader.vert",
-        "shaders/math-operation-fragment-shader.frag",
-        ["sum", "difference", "product"]);
+    resizeCanvas(canvas, 2);
 
-    gl.useProgram(program);
+    await AntHandling.init(gl, nbAgents, ANT_SPEED, canvas.width, canvas.height);
+    await AntDisplay.init(gl, nbAgents, AntHandling.buffer2, AntHandling.buffer1, canvas.width, canvas.height, Color.red);
+    await TextureBlur.init(gl, canvas.width, canvas.height);
+    await TextureDecay.init(gl, DECAY_FACTOR, canvas.width, canvas.height, AntDisplay.targetTexture);
+    await TextureDisplay.init(gl);
 
-    const aLoc = gl.getAttribLocation(program, 'a');
-    const bLoc = gl.getAttribLocation(program, 'b');
+    let previousTimestamp;
+    function animate(timestamp) {
+        requestAnimationFrame(animate);
+        if (!previousTimestamp) {
+            previousTimestamp = timestamp;
+            return;
+        }
+        let deltaTime = (timestamp - previousTimestamp) * 1e-3;
+        previousTimestamp = timestamp;
 
-    // Create a vertex array object (attribute state)
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
-    
-    const a = [1, 2, 3, 4, 5, 7];
-    const b = [3, 6, 9, 12, 15, 18];
+        const time = timestamp * 1e-3 | 0
 
-    // put data in buffers
-    const aBuffer = makeReadableVertexBuffer(gl, new Float32Array(a), aLoc,1);
-    const bBuffer = makeReadableVertexBuffer(gl, new Float32Array(b), bLoc, 1);
-
-    // Create and fill out a transform feedback
-    const tf = gl.createTransformFeedback();
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf);
-
-    // make buffers for output (size is a.length * 4 because the values are encoded in 32 bits = 4 bytes)
-    const sumBuffer = makeBuffer(gl, a.length * 4);
-    const differenceBuffer = makeBuffer(gl, a.length * 4);
-    const productBuffer = makeBuffer(gl, a.length * 4);
-
-    // bind the buffers to the transform feedback
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, sumBuffer);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, differenceBuffer);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, productBuffer);
-
-    // buffer's we are writing to can not be bound else where
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);  // productBuffer was still bound to ARRAY_BUFFER so unbind it
-
-    // no need to call the fragment shader
-    gl.enable(gl.RASTERIZER_DISCARD);
-
-    gl.beginTransformFeedback(gl.POINTS);
-    gl.drawArrays(gl.POINTS, 0, a.length);
-    gl.endTransformFeedback();
-    
-    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-
-    // turn on using fragment shaders again
-    gl.disable(gl.RASTERIZER_DISCARD);
-
-    log(`a: ${a}`);
-    log(`b: ${b}`);
-
-    printResults(gl, sumBuffer, 'sums');
-    printResults(gl, differenceBuffer, 'differences');
-    printResults(gl, productBuffer, 'products');
-
-    function printResults(gl, buffer, label) {
-        const results = new Float32Array(a.length);
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.getBufferSubData(
-            gl.ARRAY_BUFFER,
-            0,    // byte offset into GPU buffer,
-            results,
-        );
-        // print the results
-        log(`${label}: ${results}`);
+        AntHandling.update(time, deltaTime, AntDisplay.targetTexture);
+        AntDisplay.update();
+        TextureBlur.update(AntDisplay.targetTexture, BLUR_PASS);
+        TextureDecay.update(TextureBlur.targetTexture, deltaTime);
+        TextureDisplay.update(TextureDecay.targetTexture);
     }
+
+    animate()
 }
 
-function log(...args) {
-    const elem = document.createElement('pre');
-    elem.textContent = args.join(' ');
-    document.body.appendChild(elem);
-}
-
-main("small-canvas");
+await main("canvas", 1e5);

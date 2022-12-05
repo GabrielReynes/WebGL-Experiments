@@ -57,7 +57,7 @@ async function main(canvasId) {
     let displayVAO = gl.createVertexArray();
     gl.bindVertexArray(displayVAO);
 
-    const nbSquare = 10_000, maxPointSize = 50.0;
+    const nbSquare = 10000, maxPointSize = 25.0;
     const textureWidth = canvas.width, textureHeight = canvas.height;
 
     let targetTexture1 = createTexture(gl, textureWidth, textureHeight);
