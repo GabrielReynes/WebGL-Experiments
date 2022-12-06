@@ -11,12 +11,10 @@ export const TextureBlur = {
             "./shaders/texture-draw/texture-draw-vertex-shader.vert",
             "./shaders/texture-blur/texture-blur-horizontal-fragment-shader.frag");
 
-        let textureBlurVerticalProgram = this.programVerticalHorizontal = await createProgramFrom(gl,
+        let textureBlurVerticalProgram = this.programVertical = await createProgramFrom(gl,
             "./shaders/texture-draw/texture-draw-vertex-shader.vert",
             "./shaders/texture-blur/texture-blur-vertical-fragment-shader.frag");
 
-        let vao = this.vao = gl.createVertexArray();
-        gl.bindVertexArray(vao);
 
         let attributeBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, attributeBuffer);
@@ -29,8 +27,13 @@ export const TextureBlur = {
             -1, 1,
         ]), gl.STATIC_DRAW);
 
-        for (let program of [textureBlurHorizontalProgram, textureBlurHorizontalProgram]) {
+        let programs = [textureBlurHorizontalProgram, textureBlurVerticalProgram];
+        let vaos = [this.vao1, this.vao2] = [gl.createVertexArray(), gl.createVertexArray()];
+        for (let i = 0; i < 2; i++) {
+            let program = programs[i];
+            let vao = vaos[i];
             gl.useProgram(program);
+            gl.bindVertexArray(vao);
 
             let uniformLocations = getUniformLocations(gl, program, ["u_texture", "u_textureWidth", "u_textureHeight"]);
             gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
@@ -62,20 +65,27 @@ export const TextureBlur = {
 
     update(texture, nbPass) {
         const gl = this.gl;
-        gl.bindVertexArray(this.vao);
 
+        let inputTexture = texture;
         for (let i = 0; i < nbPass; i++) {
             gl.useProgram(this.programHorizontal);
+            gl.bindVertexArray(this.vao1);
 
-            gl.bindTexture(gl.TEXTURE_2D + this.textureUnit, texture);
+            gl.activeTexture(gl.TEXTURE0 + this.textureUnit)
+            gl.bindTexture(gl.TEXTURE_2D, inputTexture);
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.intermediateFramebuffer);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-            gl.bindTexture(gl.TEXTURE_2D + this.textureUnit, this.intermediateTexture);
+            gl.useProgram(this.programVertical);
+            gl.bindVertexArray(this.vao2);
+
+            gl.bindTexture(gl.TEXTURE_2D, this.intermediateTexture);
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.outputFramebuffer);
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            inputTexture = this.targetTexture
         }
 
         gl.bindVertexArray(null);

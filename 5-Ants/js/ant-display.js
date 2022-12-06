@@ -5,7 +5,7 @@ import {m3} from "../../webGlUtils/math-utils.js";
 import {createTexture} from "./utils.js";
 
 export const AntDisplay = {
-    async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, antColor = Color.white) {
+    async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, colorBuffer) {
         this.gl = gl;
         this.indicesCount = nbAnt;
         this.canvasWidth = canvasWidth;
@@ -26,11 +26,10 @@ export const AntDisplay = {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        let uniformLocations = getUniformLocations(gl, antiDisplayProgram, ["u_matrix", "u_color"]);
-        gl.uniform4f(uniformLocations["u_color"], ...Object.values(antColor));
+        let uniformLocations = getUniformLocations(gl, antiDisplayProgram, ["u_matrix"]);
         gl.uniformMatrix3fv(uniformLocations["u_matrix"], false, m3.projection(canvasWidth, canvasHeight));
 
-        let attributeLocations = getAttributeLocations(gl, antiDisplayProgram, ["a_position"]);
+        let attributeLocations = getAttributeLocations(gl, antiDisplayProgram, ["a_position", "a_color"]);
 
         function createVAOForBuffer(buffer) {
             let vao = gl.createVertexArray();
@@ -42,6 +41,13 @@ export const AntDisplay = {
             // This buffer also contains values only used for the AntHandling module (a_angleInRad)
             // We should take this into account when defining the attribution stride.
             gl.vertexAttribPointer(attributeLocations["a_position"], 2, gl.FLOAT, false, 3 * 4, 0);
+            gl.vertexAttribDivisor(attributeLocations["a_position"], 1);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+            gl.enableVertexAttribArray(attributeLocations["a_color"]);
+            gl.vertexAttribPointer(attributeLocations["a_color"], 3, gl.FLOAT, false, 0, 0);
+            gl.vertexAttribDivisor(attributeLocations["a_color"], Math.ceil(nbAnt / 6));
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
             gl.bindVertexArray(null);
@@ -64,7 +70,7 @@ export const AntDisplay = {
 
         gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
 
-        gl.drawArrays(gl.POINTS, 0, this.indicesCount);
+        gl.drawArraysInstanced(gl.POINTS, 0, 1, this.indicesCount);
 
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);

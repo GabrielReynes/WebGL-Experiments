@@ -2,13 +2,16 @@ import {resizeCanvas} from "../webGlUtils/canvas-utils.js";
 import {AntHandling} from "./js/ant-handling.js";
 import {AntDisplay} from "./js/ant-display.js";
 import {TextureDisplay} from "./js/texture-display.js";
-import {Color} from "../webGlUtils/color-utils.js";
 import {TextureBlur} from "./js/texture-blur.js";
 import {TextureDecay} from "./js/texture-decay.js";
+import {TextureBlend} from "./js/texture-blend.js";
 
 const ANT_SPEED = 100.0;
-const DECAY_FACTOR = 0.9;
-const BLUR_PASS = 1;
+const DECAY_FACTOR = 0.8;
+const BLUR_PASS = 20;
+const BLUR_FACTOR = 0.5;
+const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
+let TEXTURE_WIDTH = 3000, TEXTURE_HEIGHT = 2000;
 
 async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight) {
     let canvas = document.getElementById(canvasId);
@@ -19,15 +22,31 @@ async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight)
         return;
     }
 
-    resizeCanvas(canvas, 2);
+    resizeCanvas(canvas, DEVICE_PIXEL_RATIO);
+    TEXTURE_WIDTH = canvas.width;
+    TEXTURE_HEIGHT = canvas.height;
 
-    await AntHandling.init(gl, nbAgents, ANT_SPEED, canvas.width, canvas.height);
-    await AntDisplay.init(gl, nbAgents, AntHandling.buffer2, AntHandling.buffer1, canvas.width, canvas.height, Color.red);
-    await TextureBlur.init(gl, canvas.width, canvas.height);
-    await TextureDecay.init(gl, DECAY_FACTOR, canvas.width, canvas.height, AntDisplay.targetTexture);
+    let colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        1, 0, 0, // red
+        0, 1, 0, // red
+        0, 0, 1, // red
+        1, 1, 0, // red
+        0, 1, 1, // green
+        1, 0, 1, // blue
+    ]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    await AntHandling.init(gl, nbAgents, ANT_SPEED, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorBuffer);
+    await AntDisplay.init(gl, nbAgents, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorBuffer);
+    await TextureBlur.init(gl, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureDecay.init(gl, DECAY_FACTOR, TEXTURE_WIDTH, TEXTURE_HEIGHT, AntDisplay.targetTexture);
     await TextureDisplay.init(gl);
+    await TextureBlend.init(gl, BLUR_FACTOR, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
     let previousTimestamp;
+
     function animate(timestamp) {
         requestAnimationFrame(animate);
         if (!previousTimestamp) {
@@ -37,16 +56,17 @@ async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight)
         let deltaTime = (timestamp - previousTimestamp) * 1e-3;
         previousTimestamp = timestamp;
 
-        const time = timestamp * 1e-3 | 0
+        const time = timestamp * 1e-3 | 0;
 
         AntHandling.update(time, deltaTime, AntDisplay.targetTexture);
         AntDisplay.update();
         TextureBlur.update(AntDisplay.targetTexture, BLUR_PASS);
-        TextureDecay.update(TextureBlur.targetTexture, deltaTime);
+        TextureBlend.update(AntDisplay.targetTexture, TextureBlur.targetTexture);
+        TextureDecay.update(TextureBlend.targetTexture, deltaTime);
         TextureDisplay.update(TextureDecay.targetTexture);
     }
 
-    animate()
+    animate();
 }
 
 await main("canvas", 1e5);

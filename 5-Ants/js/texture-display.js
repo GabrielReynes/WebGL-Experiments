@@ -41,7 +41,8 @@ export const TextureDisplay = {
         gl.useProgram(this.program);
 
         gl.bindVertexArray(this.vao);
-        gl.bindTexture(gl.TEXTURE_2D + this.textureUnit, inputTexture);
+        gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
+        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
     },

@@ -54,7 +54,8 @@ export const TextureDecay = {
 
         gl.bindVertexArray(this.vao);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-        gl.bindTexture(gl.TEXTURE_2D + this.textureUnit, inputTexture);
+        gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
+        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
