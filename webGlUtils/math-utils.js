@@ -179,6 +179,13 @@ let vector2 = {
     abs(vector) {
         return this.create(Math.abs(vector.x), Math.abs(vector.y));
     },
+    /**
+     * Returns the angle in radians between the given vector and the unit right vector.
+     * @param vector
+     */
+    angle(vector) {
+        return Math.acos(vector.x / this.magnitude(vector)) * (vector.y < 0 ? -1 : 1)
+    }
 };
 
 /*

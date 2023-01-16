@@ -19,4 +19,13 @@ export const Color = {
     get black() {
         return this.create(0, 0, 0);
     },
+    get yellow() {
+        return this.create(1, 1, 0);
+    },
+    get cyan() {
+        return this.create(0, 1, 1);
+    },
+    get purple() {
+        return this.create(1, 0, 1);
+    },
 };

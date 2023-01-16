@@ -88,8 +88,6 @@ async function main() {
     gl.vertexAttribDivisor(depthAttributeLocation, 1);
 
     gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, NB_INSTANCES);
-
-
 }
 
 await main();

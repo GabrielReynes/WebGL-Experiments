@@ -1,7 +1,5 @@
 #version 300 es
 
-const int c_square_length = 5;
-
 uniform sampler2D u_texture;
 uniform uint u_time;
 uniform float u_deltaTime;
@@ -10,6 +8,7 @@ uniform float u_antSpeed;
 uniform float u_rotationSpeed;
 uniform float u_senseLength;
 uniform float u_senseSpread;
+uniform int u_senseSize;
 
 in vec2 a_position;
 in float a_angleInRad; // In Radians
@@ -51,11 +50,11 @@ float sense_sum(vec2 pos, vec2 direction)
     int center_x = int(center_point.x);
     int center_y = int(center_point.y);
 
-    for (int x = -c_square_length; x < c_square_length; x++) {
+    for (int x = -u_senseSize; x < u_senseSize; x++) {
         int sample_x = center_x + x;
-        for (int y = -c_square_length; y < c_square_length; y++) {
+        for (int y = -u_senseSize; y < u_senseSize; y++) {
             int sample_y = center_y + y;
-            vec2 conainedPos = canvasContained(vec2(sample_x, sample_y));
+//            vec2 conainedPos = canvasContained(vec2(sample_x, sample_y));
             vec4 sampled = texture(u_texture, vec2(sample_x, sample_y) / u_canvasDimensions);
             sum += dot(sampled.rgb, a_color * 2.0 - 1.0);
         }

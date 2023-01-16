@@ -10,6 +10,6 @@ out vec4 v_color;
 void main() {
     vec3 clippedPosition = u_matrix * vec3(a_position, 1);
     gl_Position = vec4(clippedPosition.xy, 0, 1);
-    gl_PointSize = 2.0;
+    gl_PointSize = 1.0;
     v_color = vec4(a_color, 1.0);
 }

@@ -1,13 +1,18 @@
 import {createComputeProgramFrom} from "../../webGlUtils/program-utils.js";
 import {getAttributeLocations, getUniformLocations} from "../../webGlUtils/attribute-location-utils.js";
-import {randrange} from "../../webGlUtils/random-utils.js";
-import {degToRad} from "../../webGlUtils/math-utils.js";
+import {randomVectorInsideUnitCircle, randrange} from "../../webGlUtils/random-utils.js";
+import {degToRad, vector2} from "../../webGlUtils/math-utils.js";
 
-function createAttributeBuffer(nbAgent, canvasWidth, canvasHeight) {
+function createAttributeBuffer(nbAgent, canvasWidth, canvasHeight, radius) {
+    let screenCenter = vector2.factor(vector2.create(canvasWidth, canvasHeight), 0.5);
+
     function randomUnitData() {
+        let relativePos = vector2.factor(randomVectorInsideUnitCircle(), radius);
+        let angle = vector2.angle(relativePos);
+        let pos = vector2.add(relativePos, screenCenter);
         return [
-            randrange(0, canvasWidth), randrange(0, canvasHeight), // Position
-            randrange(0, 2 * Math.PI), // Angle In Radians
+            pos.x, pos.y, // Position
+            angle, // Angle In Radians
         ];
     }
 
@@ -15,7 +20,7 @@ function createAttributeBuffer(nbAgent, canvasWidth, canvasHeight) {
 }
 
 export const AntHandling = {
-    async init(gl, nbAnt, antSpeed, canvasWidth, canvasHeight, colorBuffer) {
+    async init(gl, nbAnt, antParams, canvasWidth, canvasHeight, colorData, initRadius) {
         this.gl = gl;
         this.indicesCount = nbAnt;
         this.textureUnit = 0;
@@ -28,14 +33,15 @@ export const AntHandling = {
         gl.useProgram(antHandlerProgram);
         let uniformLocations = this.uniformLocations = getUniformLocations(gl, antHandlerProgram,
             ["u_time", "u_deltaTime", "u_texture", "u_canvasDimensions",
-                "u_antSpeed", "u_rotationSpeed", "u_senseLength", "u_senseSpread"]);
+                "u_antSpeed", "u_rotationSpeed", "u_senseLength", "u_senseSpread", "u_senseSize"]);
 
         gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
         gl.uniform2f(uniformLocations["u_canvasDimensions"], canvasWidth, canvasHeight);
-        gl.uniform1f(uniformLocations["u_antSpeed"], 100);
-        gl.uniform1f(uniformLocations["u_senseSpread"], 35 * degToRad);
-        gl.uniform1f(uniformLocations["u_senseLength"], 200);
-        gl.uniform1f(uniformLocations["u_rotationSpeed"], 180 * degToRad);
+        gl.uniform1f(uniformLocations["u_antSpeed"], antParams.speed);
+        gl.uniform1f(uniformLocations["u_senseSpread"], antParams.senseSpread * degToRad);
+        gl.uniform1f(uniformLocations["u_senseLength"], antParams.senseLength);
+        gl.uniform1i(uniformLocations["u_senseSize"], antParams.senseSize);
+        gl.uniform1f(uniformLocations["u_rotationSpeed"], antParams.rotationSpeed * degToRad);
 
 
         // We need two buffers to alternate between input buffer and output buffer;
@@ -49,21 +55,22 @@ export const AntHandling = {
             gl.bindVertexArray(vao);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, createAttributeBuffer(nbAnt, canvasWidth, canvasHeight), gl.DYNAMIC_COPY);
+            gl.bufferData(gl.ARRAY_BUFFER,
+                createAttributeBuffer(nbAnt, canvasWidth, canvasHeight, initRadius), gl.DYNAMIC_COPY);
 
             gl.enableVertexAttribArray(attributeLocations["a_position"]);
             gl.enableVertexAttribArray(attributeLocations["a_angleInRad"]);
 
             gl.vertexAttribPointer(attributeLocations["a_position"], 2, gl.FLOAT, false, 3 * 4, 0);
-            gl.vertexAttribDivisor(attributeLocations["a_position"], 1)
+            gl.vertexAttribDivisor(attributeLocations["a_position"], 1);
             gl.vertexAttribPointer(attributeLocations["a_angleInRad"], 1, gl.FLOAT, false, 3 * 4, 2 * 4);
-            gl.vertexAttribDivisor(attributeLocations["a_angleInRad"], 1)
+            gl.vertexAttribDivisor(attributeLocations["a_angleInRad"], 1);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorData.buffer);
 
             gl.enableVertexAttribArray(attributeLocations["a_color"]);
             gl.vertexAttribPointer(attributeLocations["a_color"], 3, gl.FLOAT, false, 0, 0);
-            gl.vertexAttribDivisor(attributeLocations["a_color"], Math.ceil(nbAnt / 6))
+            gl.vertexAttribDivisor(attributeLocations["a_color"], Math.ceil(nbAnt / colorData.length));
 
             gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
