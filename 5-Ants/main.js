@@ -7,27 +7,35 @@ import {TextureDecay} from "./js/texture-decay.js";
 import {TextureBlend} from "./js/texture-blend.js";
 import {Color} from "../webGlUtils/color-utils.js";
 
-const ANT_SPEED = 100.0;
 
 const ANT_PARAMS = {
-    speed: 75.0 * 3, // pixel per sec
-    rotationSpeed: 360*2, // degrees per sec
-    senseSpread: 25, // degrees
-    senseLength: 100, // pixels
+    speed: 20.0, // pixel per sec
+    rotationSpeed: 300, // degrees per sec
+    senseSpread: 35, // degrees
+    senseLength: 20, // pixels
     senseSize: 2, // pixels,
 };
-const DECAY_FACTOR = 0.5;
-const BLUR_PASS = 1;
+const DECAY_FACTOR = 0.3;
+const BLUR_PASS = 3;
 const BLUR_FACTOR = 0.1;
 const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
 const INIT_RADIUS = 250;
+const NB_AGENT = 2e5;
 
 const COLORS = [
     Color.red,
     Color.cyan,
+    Color.green,
+    Color.yellow,
+    Color.purple,
+    Color.orange,
+    Color.brown,
+    Color.pink,
+    Color.lime,
+    Color.teal,
 ]
 
-async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight) {
+async function main(canvasId) {
     let canvas = document.getElementById(canvasId);
     let gl = canvas.getContext("webgl2");
 
@@ -51,8 +59,8 @@ async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight)
     }
 
 
-    await AntHandling.init(gl, nbAgents, ANT_PARAMS, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, INIT_RADIUS);
-    await AntDisplay.init(gl, nbAgents, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData);
+    await AntHandling.init(gl, NB_AGENT, ANT_PARAMS, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, INIT_RADIUS);
+    await AntDisplay.init(gl, NB_AGENT, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData);
     await TextureBlur.init(gl, TEXTURE_WIDTH, TEXTURE_HEIGHT);
     await TextureDecay.init(gl, DECAY_FACTOR, TEXTURE_WIDTH, TEXTURE_HEIGHT, AntDisplay.targetTexture);
     await TextureDisplay.init(gl);
@@ -67,6 +75,7 @@ async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight)
             return;
         }
         let deltaTime = (timestamp - previousTimestamp) * 1e-3;
+        deltaTime = Math.min(deltaTime, 0.033);
         previousTimestamp = timestamp;
 
         const time = timestamp * 1e-3 | 0;
@@ -84,4 +93,4 @@ async function main(canvasId, nbAgents, targetTextureWidth, targetTextureHeight)
     animate();
 }
 
-await main("canvas", 1e5);
+await main("canvas");

@@ -28,4 +28,31 @@ export const Color = {
     get purple() {
         return this.create(1, 0, 1);
     },
+    get orange() {
+        return this.create(1, 0.5, 0);
+    },
+    get brown() {
+        return this.create(0.5, 0.25, 0);
+    },
+    get gray() {
+        return this.create(0.5, 0.5, 0.5);
+    },
+    get pink() {
+        return this.create(1, 0.5, 0.5);
+    },
+    get lime() {
+        return this.create(0.5, 1, 0.5);
+    },
+    get teal() {
+        return this.create(0, 0.5, 0.5);
+    },
+    get indigo() {
+        return this.create(0.5, 0, 1);
+    },
+    get violet() {
+        return this.create(0.5, 0, 0.5);
+    },
+    get magenta() {
+        return this.create(1, 0, 1);
+    },
 };

@@ -41,6 +41,5 @@ export function createShader(gl, type, source) {
  */
 export async function readShaderFile(gl, type, filePath) {
     const source = await loadFile(filePath);
-    console.log("Shader source:", source);
     return createShader(gl, type, source);
 }
