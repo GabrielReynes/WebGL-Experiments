@@ -1,7 +1,7 @@
 import {createProgramFrom} from "../../webGlUtils/program-utils.js";
 import {getAttributeLocations, getUniformLocations} from "../../webGlUtils/attribute-location-utils.js";
 import {m3} from "../../webGlUtils/math-utils.js";
-import {createTexture} from "./utils.js";
+import {createFloatTexture} from "./utils.js";
 
 export const AntDisplay = {
     async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, colorData) {
@@ -16,12 +16,29 @@ export const AntDisplay = {
 
         gl.useProgram(antiDisplayProgram);
 
-        let targetTexture = this.targetTexture = createTexture(gl, canvasWidth, canvasHeight);
+        // Use floating-point texture for HDR color accumulation
+        let targetTexture = this.targetTexture = createFloatTexture(gl, canvasWidth, canvasHeight);
 
         let framebuffer = this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, targetTexture, 0);
+
+        // Check for EXT_float_blend extension (required for blending with floating-point textures)
+        const floatBlendExt = gl.getExtension('EXT_float_blend');
+        if (!floatBlendExt) {
+            console.warn('EXT_float_blend extension not available. Blending with floating-point textures may not work.');
+        }
+
+        // Enable additive blending for color accumulation
+        // Note: This requires EXT_float_blend extension for floating-point textures
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        gl.blendEquation(gl.FUNC_ADD);
+
+        // Clear to black (0,0,0,0) for additive blending
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -68,6 +85,16 @@ export const AntDisplay = {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
         gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
+
+        // Clear to black for additive blending
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // Ensure additive blending is enabled
+        // Note: EXT_float_blend extension should be checked in init()
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        gl.blendEquation(gl.FUNC_ADD);
 
         gl.drawArraysInstanced(gl.POINTS, 0, 1, this.indicesCount);
 

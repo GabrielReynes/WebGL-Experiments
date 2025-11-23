@@ -2,9 +2,14 @@ import {createProgramFrom} from "../../webGlUtils/program-utils.js";
 import {getAttributeLocations, getUniformLocations} from "../../webGlUtils/attribute-location-utils.js";
 
 export const TextureDisplay = {
-    async init(gl) {
+    async init(gl, backgroundColor) {
         this.gl = gl;
         this.textureUnit = 0;
+        
+        // Get canvas dimensions for viewport
+        const canvas = gl.canvas;
+        this.canvasWidth = canvas.width;
+        this.canvasHeight = canvas.height;
 
         let textureDisplayProgram = this.program = await createProgramFrom(gl,
             "./shaders/texture-draw/texture-draw-vertex-shader.vert",
@@ -12,8 +17,11 @@ export const TextureDisplay = {
 
         gl.useProgram(textureDisplayProgram);
 
-        let uniformLocations = getUniformLocations(gl, textureDisplayProgram, ["u_texture"]);
+        let uniformLocations = getUniformLocations(gl, textureDisplayProgram, ["u_texture", "u_backgroundColor"]);
         gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
+        gl.uniform4f(uniformLocations["u_backgroundColor"], backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+        this.uniformLocations = uniformLocations;
+        this.backgroundColor = backgroundColor;  // Store for clearing
 
         let attributeLocations = getAttributeLocations(gl, textureDisplayProgram, ["a_position"]);
 
@@ -40,7 +48,16 @@ export const TextureDisplay = {
         const gl = this.gl;
         gl.useProgram(this.program);
 
+        // Clear to background color before drawing (ensures background shows through)
+        gl.clearColor(this.backgroundColor.r, this.backgroundColor.g, this.backgroundColor.b, this.backgroundColor.a);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
         gl.bindVertexArray(this.vao);
+        gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
+        
+        // Disable blending for final display (we want to replace, not blend)
+        gl.disable(gl.BLEND);
+        
         gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, inputTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);

@@ -55,4 +55,7 @@ export const Color = {
     get magenta() {
         return this.create(1, 0, 1);
     },
+    get slate() {
+        return this.create(0.18, 0.24, 0.31);
+    },
 };

@@ -17,7 +17,7 @@ void main() {
     o_color = texture(u_texture, v_uv) * weights[0];
 
     for (int i = 1; i < 3; i++) {
-        vec2 clippedOffset = vec2(offsets[i] / u_textureHeight, 0);
+        vec2 clippedOffset = vec2(offsets[i] / u_textureWidth, 0);
         o_color += texture(u_texture, v_uv + clippedOffset) * weights[i];
         o_color += texture(u_texture, v_uv - clippedOffset) * weights[i];
     }
