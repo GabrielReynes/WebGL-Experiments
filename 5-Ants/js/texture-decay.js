@@ -16,7 +16,7 @@ export const TextureDecay = {
         gl.useProgram(textureDecayProgram);
 
         let uniformLocations = this.uniformLoactions =
-            getUniformLocations(gl, textureDecayProgram, ["u_texture", "u_decayFactor", "u_deltaTime"]);
+            getUniformLocations(gl, textureDecayProgram, ["u_texture", "u_decayFactor"]);
         gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
         gl.uniform1f(uniformLocations["u_decayFactor"], decayFactor);
 
@@ -48,16 +48,19 @@ export const TextureDecay = {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.bindVertexArray(null);
     },
-    update(inputTexture, deltaTime, outputFramebuffer) {
+    update(inputTexture, outputFramebuffer) {
         const gl = this.gl;
         
-        // CRITICAL: Bind the input texture FIRST, before binding the framebuffer
+        // CRITICAL: Ensure no framebuffer is bound before binding textures
+        // This prevents any potential feedback loops
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        
+        // CRITICAL: Bind the input texture FIRST, before binding the output framebuffer
         // This prevents feedback loop errors when the texture might be attached to a framebuffer
         gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
         gl.bindTexture(gl.TEXTURE_2D, inputTexture);
         
         gl.useProgram(this.program);
-        gl.uniform1f(this.uniformLoactions["u_deltaTime"], deltaTime);
 
         gl.bindVertexArray(this.vao);
         // Use provided framebuffer if available, otherwise use our own

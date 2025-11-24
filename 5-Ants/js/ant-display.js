@@ -23,9 +23,10 @@ export const AntDisplay = {
         let targetTexture2 = this.targetTexture2 = createFloatTexture(gl, canvasWidth, canvasHeight);
         
         // Initially: read from texture 1, write to texture 2
-        this.targetTexture = targetTexture1; // Texture used by rest of pipeline
-        this.targetTextureInput = targetTexture1; // Texture we read from for decay
+        // Note: On first frame, we'll write to texture2, so targetTexture should point to texture2 after first update
+        this.targetTextureInput = targetTexture1; // Texture we read from for decay (initially empty/black)
         this.targetTextureOutput = targetTexture2; // Texture we write to after decay
+        this.targetTexture = targetTexture2; // Initially point to output texture (what we'll write to on first frame)
 
         let framebuffer1 = this.framebuffer1 = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer1);
@@ -189,11 +190,15 @@ export const AntDisplay = {
         this.targetTextureRGB8Output = temp;
         
         // Float texture buffers
+        // BEFORE swap: targetTextureInput = old input, targetTextureOutput = what we just wrote to
+        // AFTER swap: targetTextureInput = what we just wrote to, targetTextureOutput = old input (where we'll write next)
         let tempFloat = this.targetTextureInput;
-        this.targetTextureInput = this.targetTextureOutput;
-        this.targetTextureOutput = tempFloat;
-        // Update the main targetTexture reference to point to the output (what rest of pipeline uses)
-        this.targetTexture = this.targetTextureOutput;
+        this.targetTextureInput = this.targetTextureOutput;  // What we just wrote to becomes input for next frame
+        this.targetTextureOutput = tempFloat;  // Old input becomes output for next frame
+        
+        // CRITICAL: Update the main targetTexture reference IMMEDIATELY after swap
+        // After swap, targetTextureInput points to the texture we just wrote to (which is what the pipeline needs)
+        this.targetTexture = this.targetTextureInput; // This is the texture we just rendered to
         // Update framebuffer reference
         this.framebuffer = (this.targetTextureOutput === this.targetTexture1) 
             ? this.framebuffer1 

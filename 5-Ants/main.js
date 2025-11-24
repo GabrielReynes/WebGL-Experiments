@@ -12,16 +12,16 @@ import {Color} from "../webGlUtils/color-utils.js";
 
 
 const ANT_PARAMS = {
-    speed: 40.0, // pixel per sec
-    rotationSpeed: 300, // degrees per sec
-    senseSpread: 50, // degrees
-    senseLength: 20, // pixels
+    speed: 120.0, // pixel per sec
+    rotationSpeed: 335, // degrees per sec
+    senseSpread: 30, // degrees
+    senseLength: 50, // pixels
     senseSize: 1, // pixels,
 };
-const DECAY_FACTOR = 0.9;
-const SATURATION_THRESHOLD = 0.1;  // Lowered to allow more bloom (was 1.0)
-const BLOOM_INTENSITY = 2.0;  // Multiplier for bloom effect (higher = more bloom)
-const NUM_BLUR_SCALES = 3  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
+const DECAY_FACTOR = 0.01;
+const SATURATION_THRESHOLD = 0.0;  // Lowered to allow more bloom (was 1.0)
+const BLOOM_INTENSITY = 1.0;  // Multiplier for bloom effect (higher = more bloom)
+const NUM_BLUR_SCALES = 5  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
 const FLOAT_TEXTURE_COLOR_FACTOR = 0.1;  // Color factor for float texture (prevents quick saturation)
 const RGB8_TEXTURE_COLOR_FACTOR = 1.0;   // Color factor for RGB8 texture (full intensity for ant sensing)
 const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
@@ -126,7 +126,7 @@ async function main(canvasId) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         
         // Decay the input texture and write directly to the output framebuffer
-        TextureDecayRGB8.update(rgb8InputTexture, deltaTime, outputFramebuffer);
+        TextureDecayRGB8.update(rgb8InputTexture, outputFramebuffer);
         
         // Ants read from the RGB8 texture from previous frame to sense trails
         AntHandling.update(time, deltaTime, rgb8InputTexture);
@@ -134,30 +134,55 @@ async function main(canvasId) {
         // Decay the float texture before rendering new ants (for accumulation)
         // Get the input texture (what we read from) and output framebuffer (where we write to)
         let floatInputTexture = AntDisplay.targetTextureInput;
-        let floatOutputFramebuffer = (AntDisplay.targetTextureOutput === AntDisplay.targetTexture1) 
-            ? AntDisplay.framebuffer1 
-            : AntDisplay.framebuffer2;
+        let floatOutputTexture = AntDisplay.targetTextureOutput;
         
         // Ensure input and output are different (ping-pong requirement)
-        if (floatInputTexture === AntDisplay.targetTextureOutput) {
+        if (floatInputTexture === floatOutputTexture) {
             console.error("Float texture ping-pong error: input and output textures are the same!");
             return; // Skip this frame to avoid feedback loop
         }
         
+        // Get the correct framebuffer for the output texture
+        let floatOutputFramebuffer = (floatOutputTexture === AntDisplay.targetTexture1) 
+            ? AntDisplay.framebuffer1 
+            : AntDisplay.framebuffer2;
+        
+        // Verify the input texture is NOT attached to the output framebuffer
+        // (This should never happen with proper ping-pong, but let's be safe)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, floatOutputFramebuffer);
+        let attachedTexture = gl.getFramebufferAttachmentParameter(
+            gl.FRAMEBUFFER, 
+            gl.COLOR_ATTACHMENT0, 
+            gl.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME
+        );
+        if (attachedTexture === floatInputTexture) {
+            console.error("ERROR: Input texture is attached to output framebuffer! This will cause flickering.");
+        }
+        
         // CRITICAL: Unbind any framebuffer before binding the input texture for reading
+        // This prevents feedback loop errors when reading from a texture
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         
         // Decay the input texture and write to the output framebuffer
-        TextureDecay.update(floatInputTexture, deltaTime, floatOutputFramebuffer);
+        // The input texture should NOT be attached to the output framebuffer (ping-pong ensures this)
+        // Note: We read from targetTextureInput (previous frame's output) and write to targetTextureOutput
+        TextureDecay.update(floatInputTexture, floatOutputFramebuffer);
         
         // Render ants on top of the decayed texture (which is now in the float texture framebuffer)
+        // This will swap the textures at the end, so next frame will read from what we just wrote to
         AntDisplay.update();
         gl.disable(gl.BLEND);  // Disable blending after ant display
-        TextureThreshold.update(AntDisplay.targetTexture);
+        
+        // CRITICAL: Capture the texture reference AFTER update() completes (after swap)
+        // This ensures we use the texture we just rendered to
+        let currentFloatTexture = AntDisplay.targetTexture;
+        
+        TextureThreshold.update(currentFloatTexture);
         TextureBlur.update(TextureThreshold.targetTexture);
-        TextureMerge.update(AntDisplay.targetTexture, TextureBlur.getScaleTextures());
-        TextureDecay.update(TextureMerge.targetTexture, deltaTime);
-        TextureDisplay.update(TextureDecay.targetTexture);
+        TextureMerge.update(currentFloatTexture, TextureBlur.getScaleTextures());
+        // Removed second decay pass - it was causing flickering by decaying the final output
+        // The accumulation decay (before ant rendering) is sufficient
+        TextureDisplay.update(TextureMerge.targetTexture);
         // Debug: Display RGB8 texture instead of decayed texture
         // TextureDisplay.update(AntDisplay.targetTextureRGB8);
     }
