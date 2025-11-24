@@ -121,4 +121,14 @@ export const AntHandling = {
             this.outputBuffer = this.buffer2;
         }
     },
+    
+    setAntParams(antParams) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniformLocations["u_antSpeed"], antParams.speed);
+        gl.uniform1f(this.uniformLocations["u_senseSpread"], antParams.senseSpread * degToRad);
+        gl.uniform1f(this.uniformLocations["u_senseLength"], antParams.senseLength);
+        gl.uniform1i(this.uniformLocations["u_senseSize"], antParams.senseSize);
+        gl.uniform1f(this.uniformLocations["u_rotationSpeed"], antParams.rotationSpeed * degToRad);
+    },
 };

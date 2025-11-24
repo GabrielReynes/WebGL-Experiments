@@ -70,5 +70,11 @@ export const TextureDecayRGB8 = {
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     },
+    
+    setDecayFactor(decayFactor) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniformLocations["u_decayFactor"], decayFactor);
+    },
 };
 

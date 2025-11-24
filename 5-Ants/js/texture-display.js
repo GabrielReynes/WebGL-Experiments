@@ -63,4 +63,12 @@ export const TextureDisplay = {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
     },
+    
+    setBackgroundColor(backgroundColor) {
+        const gl = this.gl;
+        this.backgroundColor = backgroundColor;
+        gl.useProgram(this.program);
+        gl.uniform4f(this.uniformLocations["u_backgroundColor"], backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+        gl.clearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+    },
 };

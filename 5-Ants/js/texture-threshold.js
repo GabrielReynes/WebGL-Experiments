@@ -68,6 +68,12 @@ export const TextureThreshold = {
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     },
+    
+    setThreshold(threshold) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniformLocations["u_threshold"], threshold);
+    },
 };
 
 

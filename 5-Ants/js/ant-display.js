@@ -4,7 +4,7 @@ import {m3} from "../../webGlUtils/math-utils.js";
 import {createFloatTexture, createTexture} from "./utils.js";
 
 export const AntDisplay = {
-    async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, colorData, floatColorFactor, rgb8ColorFactor) {
+    async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, rgb8ColorData, floatColorData, floatColorFactor, rgb8ColorFactor) {
         this.gl = gl;
         this.indicesCount = nbAnt;
         this.canvasWidth = canvasWidth;
@@ -96,7 +96,8 @@ export const AntDisplay = {
 
         let attributeLocations = getAttributeLocations(gl, antiDisplayProgram, ["a_position", "a_color"]);
 
-        function createVAOForBuffer(buffer) {
+        // Create VAO creation function that accepts a color buffer
+        function createVAOForBuffer(buffer, colorData) {
             let vao = gl.createVertexArray();
             gl.bindVertexArray(vao);
 
@@ -120,10 +121,17 @@ export const AntDisplay = {
             return vao;
         }
 
-        this.vao1 = createVAOForBuffer(inputBuffer1);
-        this.vao2 = createVAOForBuffer(inputBuffer2);
+        // Create separate VAOs for float texture rendering (using float colors)
+        this.floatVao1 = createVAOForBuffer(inputBuffer1, floatColorData);
+        this.floatVao2 = createVAOForBuffer(inputBuffer2, floatColorData);
 
-        this.vao = this.vao1;
+        // Create separate VAOs for RGB8 texture rendering (using RGB8 colors)
+        this.rgb8Vao1 = createVAOForBuffer(inputBuffer1, rgb8ColorData);
+        this.rgb8Vao2 = createVAOForBuffer(inputBuffer2, rgb8ColorData);
+
+        // Initialize current VAOs
+        this.floatVao = this.floatVao1;
+        this.rgb8Vao = this.rgb8Vao1;
     },
 
     update() {
@@ -132,7 +140,8 @@ export const AntDisplay = {
 
         // First pass: Render to float texture with additive blending (for bloom)
         // Note: The decayed texture should already be in the framebuffer from main.js
-        gl.bindVertexArray(this.vao);
+        // Use float VAO with float colors for visual display
+        gl.bindVertexArray(this.floatVao);
         // Use the output framebuffer (where we write after decay)
         let floatOutputFb = (this.targetTextureOutput === this.targetTexture1) 
             ? this.framebuffer1 
@@ -158,6 +167,8 @@ export const AntDisplay = {
 
         // Second pass: Render to RGB8 texture with blending for accumulation (for ant handling)
         // Note: The decayed texture should already be in the framebuffer from main.js
+        // Use RGB8 VAO with RGB8 colors for ant separation
+        gl.bindVertexArray(this.rgb8Vao);
         // Use the output framebuffer (which texture we're writing to)
         let rgb8OutputFb = (this.targetTextureRGB8Output === this.targetTextureRGB8_1) 
             ? this.framebufferRGB8_1 
@@ -204,6 +215,13 @@ export const AntDisplay = {
             ? this.framebuffer1 
             : this.framebuffer2;
 
-        this.vao = this.vao === this.vao1 ? this.vao2 : this.vao1;
+        // Swap VAOs for next frame (both float and RGB8 VAOs need to track the buffer ping-pong)
+        this.floatVao = this.floatVao === this.floatVao1 ? this.floatVao2 : this.floatVao1;
+        this.rgb8Vao = this.rgb8Vao === this.rgb8Vao1 ? this.rgb8Vao2 : this.rgb8Vao1;
+    },
+    
+    setColorFactors(floatColorFactor, rgb8ColorFactor) {
+        this.floatColorFactor = floatColorFactor;
+        this.rgb8ColorFactor = rgb8ColorFactor;
     },
 };

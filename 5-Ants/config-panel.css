@@ -1,0 +1,225 @@
+.config-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    max-height: 0;
+    overflow: hidden;
+    background: rgba(20, 20, 30, 0.1);
+    backdrop-filter: blur(2px);
+    border-bottom: 2px solid rgba(100, 100, 150, 0.2);
+    z-index: 1000;
+    transition: max-height 0.3s ease-out;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.config-panel.visible {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.config-content {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.config-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(100, 100, 150, 0.15);
+}
+
+.config-section:last-child {
+    border-bottom: none;
+}
+
+.config-section h3 {
+    color: #e0e0f0;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.config-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.config-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-control label {
+    color: #e0e0f0;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: capitalize;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.config-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(100, 100, 150, 0.3);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.config-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6b9fff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.config-slider::-webkit-slider-thumb:hover {
+    background: #8bb3ff;
+}
+
+.config-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6b9fff;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.config-slider::-moz-range-thumb:hover {
+    background: #8bb3ff;
+}
+
+.config-number {
+    width: 80px;
+    padding: 6px 10px;
+    background: rgba(40, 40, 60, 0.6);
+    border: 1px solid rgba(100, 100, 150, 0.4);
+    border-radius: 4px;
+    color: #e0e0f0;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+    backdrop-filter: blur(2px);
+}
+
+.config-number:focus {
+    border-color: #6b9fff;
+}
+
+.config-number::-webkit-inner-spin-button,
+.config-number::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
+.config-color {
+    width: 60px;
+    height: 35px;
+    border: 1px solid rgba(100, 100, 150, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.config-color:hover {
+    border-color: #6b9fff;
+}
+
+.config-controls-section {
+    margin-top: 10px;
+    padding-top: 20px;
+}
+
+.control-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.control-btn {
+    padding: 10px 25px;
+    background: rgba(107, 159, 255, 0.3);
+    border: 1px solid rgba(107, 159, 255, 0.5);
+    border-radius: 6px;
+    color: #e0e0f0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 100px;
+    backdrop-filter: blur(2px);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.control-btn:hover {
+    background: rgba(107, 159, 255, 0.3);
+    border-color: rgba(107, 159, 255, 0.6);
+    transform: translateY(-1px);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+}
+
+/* Scrollbar styling */
+.config-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.config-panel::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.1);
+}
+
+.config-panel::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 150, 0.3);
+    border-radius: 4px;
+}
+
+.config-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 150, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .config-content {
+        padding: 15px;
+    }
+    
+    .config-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .control-buttons {
+        flex-direction: column;
+    }
+    
+    .control-btn {
+        width: 100%;
+    }
+}
+

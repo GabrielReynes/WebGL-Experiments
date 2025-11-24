@@ -9,42 +9,186 @@ import {TextureThreshold} from "./js/texture-threshold.js";
 import {TextureMerge} from "./js/texture-merge.js";
 import {TextureNormalize} from "./js/texture-normalize.js";
 import {Color} from "../webGlUtils/color-utils.js";
+import {ConfigPanel} from "./js/config-panel.js";
 
 
-const ANT_PARAMS = {
-    speed: 120.0, // pixel per sec
-    rotationSpeed: 335, // degrees per sec
-    senseSpread: 30, // degrees
-    senseLength: 50, // pixels
-    senseSize: 1, // pixels,
+// Mutable state objects for configuration
+let state = {
+    antParams: {
+        speed: 40.0, // pixel per sec
+        rotationSpeed: 335, // degrees per sec
+        senseSpread: 30, // degrees
+        senseLength: 20, // pixels
+        senseSize: 1, // pixels,
+    },
+    decayFactor: 0.03,
+    saturationThreshold: 0.2,  // Lowered to allow more bloom (was 1.0)
+    bloomIntensity: 1.0,  // Multiplier for bloom effect (higher = more bloom)
+    numBlurScales: 7,  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
+    floatTextureColorFactor: 0.1,  // Color factor for float texture (prevents quick saturation)
+    rgb8TextureColorFactor: 1.0,   // Color factor for RGB8 texture (full intensity for ant sensing)
+    nbAgent: 3e5,
+    initRadius: 2000,
+    backgroundColor: Color.create(0,0,0),
+    isPaused: false,
 };
-const DECAY_FACTOR = 0.01;
-const SATURATION_THRESHOLD = 0.0;  // Lowered to allow more bloom (was 1.0)
-const BLOOM_INTENSITY = 1.0;  // Multiplier for bloom effect (higher = more bloom)
-const NUM_BLUR_SCALES = 5  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
-const FLOAT_TEXTURE_COLOR_FACTOR = 0.1;  // Color factor for float texture (prevents quick saturation)
-const RGB8_TEXTURE_COLOR_FACTOR = 1.0;   // Color factor for RGB8 texture (full intensity for ant sensing)
-const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
-const INIT_RADIUS = 700;
-const NB_AGENT = 3e5;
-const BACKGROUND_COLOR = Color.create(0,0,0);
 
-const COLORS = [
-    Color.red,
-    Color.cyan,
-    Color.green,
-    Color.yellow,
-    Color.purple,
-    Color.orange,
-    Color.brown,
-    Color.pink,
-    Color.lime,
-    Color.teal,
+const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
+
+// RGB8 colors: Distinct colors for ant separation (prevents mixing)
+// 10 maximally different colors to prevent ant mixing
+const RGB8_COLORS = [
+    Color.red,        // 0: Red
+    Color.blue,       // 1: Blue
+    Color.green,      // 2: Green
+    Color.yellow,     // 3: Yellow
+    Color.cyan,       // 4: Cyan
+    Color.purple,     // 5: Purple/Magenta
+    Color.orange,     // 6: Orange
+    Color.pink,       // 7: Pink
+    Color.lime,       // 8: Lime
+    Color.create(1.0, 0.0, 0.5),  // 9: Magenta (distinct from purple)
 ]
 
+// Float colors: Shades/variations for visual display (nice color palette)
+// 10 shades from pure blue to pure red using OKLab color space with equal increments
+// OKLab: L=lightness, a=green-red (negative=green, positive=red), b=blue-yellow (negative=blue, positive=yellow)
+const FLOAT_COLORS = [
+    Color.fromOKLab(0.65, 0.0, -0.25),    // 0: Pure blue
+    Color.fromOKLab(0.65, 0.0278, -0.2056),  // 1
+    Color.fromOKLab(0.65, 0.0556, -0.1611),  // 2
+    Color.fromOKLab(0.65, 0.0833, -0.1167),  // 3
+    Color.fromOKLab(0.65, 0.1111, -0.0722),  // 4
+    Color.fromOKLab(0.65, 0.1389, -0.0278),  // 5
+    Color.fromOKLab(0.65, 0.1667, 0.0167),   // 6
+    Color.fromOKLab(0.65, 0.1944, 0.0611),   // 7
+    Color.fromOKLab(0.65, 0.2222, 0.1056),   // 8
+    Color.fromOKLab(0.65, 0.25, 0.15),       // 9: Pure red
+]
+
+let gl, canvas, TEXTURE_WIDTH, TEXTURE_HEIGHT;
+let rgb8ColorData, floatColorData;
+let previousTimestamp;
+let animationFrameId;
+
+async function initializeSimulation() {
+    // Set the background color
+    gl.clearColor(state.backgroundColor.r, state.backgroundColor.g, state.backgroundColor.b, state.backgroundColor.a);
+
+    resizeCanvas(canvas, DEVICE_PIXEL_RATIO);
+    TEXTURE_WIDTH = canvas.width;
+    TEXTURE_HEIGHT = canvas.height;
+
+    // Create RGB8 color buffer (for ant sensing/separation)
+    let rgb8ColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, rgb8ColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(RGB8_COLORS.flatMap(c => [c.r, c.g, c.b])), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    rgb8ColorData = {
+        buffer: rgb8ColorBuffer,
+        length: RGB8_COLORS.length
+    }
+
+    // Create float color buffer (for visual display)
+    let floatColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, floatColorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(FLOAT_COLORS.flatMap(c => [c.r, c.g, c.b])), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    floatColorData = {
+        buffer: floatColorBuffer,
+        length: FLOAT_COLORS.length
+    }
+
+    // AntHandling uses RGB8 colors for sensing
+    await AntHandling.init(gl, state.nbAgent, state.antParams, TEXTURE_WIDTH, TEXTURE_HEIGHT, rgb8ColorData, state.initRadius);
+    await AntDisplay.init(gl, state.nbAgent, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, rgb8ColorData, floatColorData, state.floatTextureColorFactor, state.rgb8TextureColorFactor);
+    await TextureThreshold.init(gl, state.saturationThreshold, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureBlur.init(gl, state.numBlurScales, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureMerge.init(gl, state.bloomIntensity, state.numBlurScales, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureDecay.init(gl, state.decayFactor, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureDecayRGB8.init(gl, state.decayFactor, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureNormalize.init(gl, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+    await TextureDisplay.init(gl, state.backgroundColor);
+}
+
+function handleParameterChange(paramId, value) {
+    switch(paramId) {
+        case 'speed':
+        case 'rotationSpeed':
+        case 'senseSpread':
+        case 'senseLength':
+        case 'senseSize':
+            state.antParams[paramId] = value;
+            AntHandling.setAntParams(state.antParams);
+            break;
+        case 'decayFactor':
+            state.decayFactor = value;
+            TextureDecay.setDecayFactor(value);
+            TextureDecayRGB8.setDecayFactor(value);
+            break;
+        case 'saturationThreshold':
+            state.saturationThreshold = value;
+            TextureThreshold.setThreshold(value);
+            break;
+        case 'bloomIntensity':
+            state.bloomIntensity = value;
+            TextureMerge.setBloomIntensity(value);
+            break;
+        case 'numBlurScales':
+            // This requires reinitialization, so we'll just update the state
+            // User will need to reset to apply
+            state.numBlurScales = value;
+            break;
+        case 'floatTextureColorFactor':
+            state.floatTextureColorFactor = value;
+            AntDisplay.setColorFactors(state.floatTextureColorFactor, state.rgb8TextureColorFactor);
+            break;
+        case 'rgb8TextureColorFactor':
+            state.rgb8TextureColorFactor = value;
+            AntDisplay.setColorFactors(state.floatTextureColorFactor, state.rgb8TextureColorFactor);
+            break;
+        case 'backgroundColor':
+            state.backgroundColor = value;
+            TextureDisplay.setBackgroundColor(value);
+            gl.clearColor(value.r, value.g, value.b, value.a);
+            break;
+        case 'nbAgent':
+        case 'initRadius':
+            // These require reset, just update state
+            state[paramId] = value;
+            break;
+    }
+}
+
+async function resetSimulation() {
+    // Cancel current animation
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
+    // Reinitialize everything
+    await initializeSimulation();
+    
+    // Reset timestamp
+    previousTimestamp = undefined;
+    
+    // Restart animation
+    animate();
+}
+
+function togglePause() {
+    state.isPaused = !state.isPaused;
+    if (!state.isPaused && !animationFrameId) {
+        animate();
+    }
+    return state.isPaused;
+}
+
 async function main(canvasId) {
-    let canvas = document.getElementById(canvasId);
-    let gl = canvas.getContext("webgl2", { alpha: false });
+    canvas = document.getElementById(canvasId);
+    gl = canvas.getContext("webgl2", { alpha: false });
 
     if (!gl) {
         console.error("WebGl2 Context could not be retrieve from th page's Canvas");
@@ -63,38 +207,23 @@ async function main(canvasId) {
         console.error('EXT_float_blend extension is required but not available. Blending with floating-point textures will not work.');
     }
 
-    // Set the background color
-    gl.clearColor(BACKGROUND_COLOR.r, BACKGROUND_COLOR.g, BACKGROUND_COLOR.b, BACKGROUND_COLOR.a);
+    // Initialize simulation
+    await initializeSimulation();
 
-    resizeCanvas(canvas, DEVICE_PIXEL_RATIO);
-    let TEXTURE_WIDTH = canvas.width;
-    let TEXTURE_HEIGHT = canvas.height;
-
-    let colorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(COLORS.flatMap(c => [c.r, c.g, c.b])), gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-    let colorData = {
-        buffer: colorBuffer,
-        length: COLORS.length
-    }
-
-
-    await AntHandling.init(gl, NB_AGENT, ANT_PARAMS, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, INIT_RADIUS);
-    await AntDisplay.init(gl, NB_AGENT, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, FLOAT_TEXTURE_COLOR_FACTOR, RGB8_TEXTURE_COLOR_FACTOR);
-    await TextureThreshold.init(gl, SATURATION_THRESHOLD, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureBlur.init(gl, NUM_BLUR_SCALES, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureMerge.init(gl, BLOOM_INTENSITY, NUM_BLUR_SCALES, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureDecay.init(gl, DECAY_FACTOR, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureDecayRGB8.init(gl, DECAY_FACTOR, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureNormalize.init(gl, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-    await TextureDisplay.init(gl, BACKGROUND_COLOR);
-
-    let previousTimestamp;
+    // Initialize config panel
+    ConfigPanel.init(state, {
+        onParameterChange: handleParameterChange,
+        onPause: togglePause,
+        onReset: resetSimulation,
+    });
 
     function animate(timestamp) {
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
+        
+        if (state.isPaused) {
+            return;
+        }
+        
         if (!previousTimestamp) {
             previousTimestamp = timestamp;
             return;

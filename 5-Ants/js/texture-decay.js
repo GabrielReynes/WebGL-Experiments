@@ -15,7 +15,7 @@ export const TextureDecay = {
 
         gl.useProgram(textureDecayProgram);
 
-        let uniformLocations = this.uniformLoactions =
+        let uniformLocations = this.uniformLocations =
             getUniformLocations(gl, textureDecayProgram, ["u_texture", "u_decayFactor"]);
         gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
         gl.uniform1f(uniformLocations["u_decayFactor"], decayFactor);
@@ -70,5 +70,11 @@ export const TextureDecay = {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    },
+    
+    setDecayFactor(decayFactor) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniformLocations["u_decayFactor"], decayFactor);
     },
 };

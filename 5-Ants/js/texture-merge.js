@@ -141,5 +141,11 @@ ${scaleTextureSamples.join('\n')}
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     },
+    
+    setBloomIntensity(bloomIntensity) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        gl.uniform1f(this.uniformLocations["u_bloomIntensity"], bloomIntensity);
+    },
 };
 
