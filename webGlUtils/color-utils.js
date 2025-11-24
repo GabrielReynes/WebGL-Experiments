@@ -1,4 +1,7 @@
 export const Color = {
+    mul(color, factor) {
+        return this.create(color.r * factor, color.g * factor, color.b * factor, color.a);
+    },
     create(r, g, b, a = 1) {
         return {
             r, g, b, a,

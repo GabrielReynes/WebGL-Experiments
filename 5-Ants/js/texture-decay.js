@@ -48,17 +48,22 @@ export const TextureDecay = {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.bindVertexArray(null);
     },
-    update(inputTexture, deltaTime) {
+    update(inputTexture, deltaTime, outputFramebuffer) {
         const gl = this.gl;
+        
+        // CRITICAL: Bind the input texture FIRST, before binding the framebuffer
+        // This prevents feedback loop errors when the texture might be attached to a framebuffer
+        gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
+        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+        
         gl.useProgram(this.program);
-
         gl.uniform1f(this.uniformLoactions["u_deltaTime"], deltaTime);
 
         gl.bindVertexArray(this.vao);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+        // Use provided framebuffer if available, otherwise use our own
+        let fb = outputFramebuffer || this.framebuffer;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
         gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
-        gl.activeTexture(gl.TEXTURE0 + this.textureUnit);
-        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);

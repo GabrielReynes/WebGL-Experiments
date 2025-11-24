@@ -12,32 +12,34 @@ import {Color} from "../webGlUtils/color-utils.js";
 
 
 const ANT_PARAMS = {
-    speed: 60.0, // pixel per sec
-    rotationSpeed: 500, // degrees per sec
-    senseSpread: 30, // degrees
+    speed: 40.0, // pixel per sec
+    rotationSpeed: 300, // degrees per sec
+    senseSpread: 50, // degrees
     senseLength: 20, // pixels
     senseSize: 1, // pixels,
 };
-const DECAY_FACTOR = 0.4;
-const SATURATION_THRESHOLD = 1.0;  // Lowered to allow more bloom (was 1.0)
-const BLOOM_INTENSITY = 0.6;  // Multiplier for bloom effect (higher = more bloom)
-const NUM_BLUR_SCALES = 5  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
+const DECAY_FACTOR = 0.9;
+const SATURATION_THRESHOLD = 0.1;  // Lowered to allow more bloom (was 1.0)
+const BLOOM_INTENSITY = 2.0;  // Multiplier for bloom effect (higher = more bloom)
+const NUM_BLUR_SCALES = 3  // Number of blur/downscale passes (1x, 0.5x, 0.25x, 0.125x, etc.)
+const FLOAT_TEXTURE_COLOR_FACTOR = 0.1;  // Color factor for float texture (prevents quick saturation)
+const RGB8_TEXTURE_COLOR_FACTOR = 1.0;   // Color factor for RGB8 texture (full intensity for ant sensing)
 const DEVICE_PIXEL_RATIO = window.devicePixelRatio;
-const INIT_RADIUS = 250;
-const NB_AGENT = 2e5;
-const BACKGROUND_COLOR = Color.create(25/255, 26/255, 27/255);
+const INIT_RADIUS = 700;
+const NB_AGENT = 3e5;
+const BACKGROUND_COLOR = Color.create(0,0,0);
 
 const COLORS = [
     Color.red,
     Color.cyan,
-    // Color.green,
-    // Color.yellow,
-    // Color.purple,
-    // Color.orange,
-    // Color.brown,
-    // Color.pink,
-    // Color.lime,
-    // Color.teal,
+    Color.green,
+    Color.yellow,
+    Color.purple,
+    Color.orange,
+    Color.brown,
+    Color.pink,
+    Color.lime,
+    Color.teal,
 ]
 
 async function main(canvasId) {
@@ -80,7 +82,7 @@ async function main(canvasId) {
 
 
     await AntHandling.init(gl, NB_AGENT, ANT_PARAMS, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, INIT_RADIUS);
-    await AntDisplay.init(gl, NB_AGENT, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData);
+    await AntDisplay.init(gl, NB_AGENT, AntHandling.buffer2, AntHandling.buffer1, TEXTURE_WIDTH, TEXTURE_HEIGHT, colorData, FLOAT_TEXTURE_COLOR_FACTOR, RGB8_TEXTURE_COLOR_FACTOR);
     await TextureThreshold.init(gl, SATURATION_THRESHOLD, TEXTURE_WIDTH, TEXTURE_HEIGHT);
     await TextureBlur.init(gl, NUM_BLUR_SCALES, TEXTURE_WIDTH, TEXTURE_HEIGHT);
     await TextureMerge.init(gl, BLOOM_INTENSITY, NUM_BLUR_SCALES, TEXTURE_WIDTH, TEXTURE_HEIGHT);
@@ -129,7 +131,26 @@ async function main(canvasId) {
         // Ants read from the RGB8 texture from previous frame to sense trails
         AntHandling.update(time, deltaTime, rgb8InputTexture);
         
-        // Render ants on top of the decayed texture (which is now in the output framebuffer)
+        // Decay the float texture before rendering new ants (for accumulation)
+        // Get the input texture (what we read from) and output framebuffer (where we write to)
+        let floatInputTexture = AntDisplay.targetTextureInput;
+        let floatOutputFramebuffer = (AntDisplay.targetTextureOutput === AntDisplay.targetTexture1) 
+            ? AntDisplay.framebuffer1 
+            : AntDisplay.framebuffer2;
+        
+        // Ensure input and output are different (ping-pong requirement)
+        if (floatInputTexture === AntDisplay.targetTextureOutput) {
+            console.error("Float texture ping-pong error: input and output textures are the same!");
+            return; // Skip this frame to avoid feedback loop
+        }
+        
+        // CRITICAL: Unbind any framebuffer before binding the input texture for reading
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        
+        // Decay the input texture and write to the output framebuffer
+        TextureDecay.update(floatInputTexture, deltaTime, floatOutputFramebuffer);
+        
+        // Render ants on top of the decayed texture (which is now in the float texture framebuffer)
         AntDisplay.update();
         gl.disable(gl.BLEND);  // Disable blending after ant display
         TextureThreshold.update(AntDisplay.targetTexture);
