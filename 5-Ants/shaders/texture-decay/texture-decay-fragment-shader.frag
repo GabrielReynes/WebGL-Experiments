@@ -11,5 +11,7 @@ in vec2 v_uv;
 out vec4 o_color;
 
 void main() {
-    o_color = texture(u_texture, v_uv) - u_decayFactor * u_deltaTime;
+    vec4 color = texture(u_texture, v_uv) - u_decayFactor * u_deltaTime;
+    // Clamp to [0,1] range (important for RGB8 textures, safe for float textures)
+    o_color = clamp(color, 0.0, 1.0);
 }

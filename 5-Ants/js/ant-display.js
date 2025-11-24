@@ -1,7 +1,7 @@
 import {createProgramFrom} from "../../webGlUtils/program-utils.js";
 import {getAttributeLocations, getUniformLocations} from "../../webGlUtils/attribute-location-utils.js";
 import {m3} from "../../webGlUtils/math-utils.js";
-import {createFloatTexture} from "./utils.js";
+import {createFloatTexture, createTexture} from "./utils.js";
 
 export const AntDisplay = {
     async init(gl, nbAnt, inputBuffer1, inputBuffer2, canvasWidth, canvasHeight, colorData) {
@@ -42,8 +42,39 @@ export const AntDisplay = {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        let uniformLocations = getUniformLocations(gl, antiDisplayProgram, ["u_matrix"]);
-        gl.uniformMatrix3fv(uniformLocations["u_matrix"], false, m3.projection(canvasWidth, canvasHeight));
+        // Create RGB8 textures and framebuffers for ant handling input (half resolution)
+        // Use ping-pong buffers for accumulation
+        let rgb8Width = Math.floor(canvasWidth * 0.5);
+        let rgb8Height = Math.floor(canvasHeight * 0.5);
+        
+        // Create two textures for ping-pong (read from one, write to the other)
+        let targetTextureRGB8_1 = this.targetTextureRGB8_1 = createTexture(gl, rgb8Width, rgb8Height);
+        let targetTextureRGB8_2 = this.targetTextureRGB8_2 = createTexture(gl, rgb8Width, rgb8Height);
+        
+        // Initially: read from texture 1, write to texture 2
+        this.targetTextureRGB8 = targetTextureRGB8_1; // Texture ants read from (input)
+        this.targetTextureRGB8Output = targetTextureRGB8_2; // Texture we write to (output)
+        
+        let framebufferRGB8_1 = this.framebufferRGB8_1 = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferRGB8_1);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, targetTextureRGB8_1, 0);
+        
+        let framebufferRGB8_2 = this.framebufferRGB8_2 = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferRGB8_2);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, targetTextureRGB8_2, 0);
+        
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        let uniformLocations = getUniformLocations(gl, antiDisplayProgram, ["u_matrix", "u_scale"]);
+        this.uniformLocations = uniformLocations;
+        
+        // Create projection matrices for both resolutions
+        this.matrixFull = m3.projection(canvasWidth, canvasHeight);
+        this.matrixHalf = m3.projection(rgb8Width, rgb8Height);
+        
+        // Store dimensions for RGB8 pass
+        this.rgb8Width = rgb8Width;
+        this.rgb8Height = rgb8Height;
 
         let attributeLocations = getAttributeLocations(gl, antiDisplayProgram, ["a_position", "a_color"]);
 
@@ -81,25 +112,56 @@ export const AntDisplay = {
         const gl = this.gl;
         gl.useProgram(this.program);
 
+        // First pass: Render to float texture with additive blending (for bloom)
         gl.bindVertexArray(this.vao);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-
         gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
+
+        // Set projection matrix and scale for full resolution
+        gl.uniformMatrix3fv(this.uniformLocations["u_matrix"], false, this.matrixFull);
+        gl.uniform1f(this.uniformLocations["u_scale"], 1.0);
 
         // Clear to black for additive blending
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        // Ensure additive blending is enabled
-        // Note: EXT_float_blend extension should be checked in init()
+        // Enable additive blending for float texture pass
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE);
         gl.blendEquation(gl.FUNC_ADD);
 
         gl.drawArraysInstanced(gl.POINTS, 0, 1, this.indicesCount);
 
+        // Second pass: Render to RGB8 texture with blending for accumulation (for ant handling)
+        // Note: The decayed texture should already be in the framebuffer from main.js
+        // Use the output framebuffer (which texture we're writing to)
+        let outputFramebuffer = (this.targetTextureRGB8Output === this.targetTextureRGB8_1) 
+            ? this.framebufferRGB8_1 
+            : this.framebufferRGB8_2;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, outputFramebuffer);
+        gl.viewport(0, 0, this.rgb8Width, this.rgb8Height);
+
+        // Set projection matrix and scale for half resolution (scale positions by 0.5)
+        gl.uniformMatrix3fv(this.uniformLocations["u_matrix"], false, this.matrixHalf);
+        gl.uniform1f(this.uniformLocations["u_scale"], 0.5);
+
+        // Don't clear - we want to accumulate on top of the decayed texture
+        // The decay will be applied before this pass in main.js
+
+        // Disable blending for RGB8 - we want ant colors to replace, not additively blend
+        // Trails still accumulate over time because we render on top of the decayed texture
+        gl.disable(gl.BLEND);
+
+        gl.drawArraysInstanced(gl.POINTS, 0, 1, this.indicesCount);
+
         gl.bindVertexArray(null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // Swap ping-pong buffers for next frame
+        // After rendering, what we just wrote to becomes the input for next frame
+        let temp = this.targetTextureRGB8;
+        this.targetTextureRGB8 = this.targetTextureRGB8Output;
+        this.targetTextureRGB8Output = temp;
 
         this.vao = this.vao === this.vao1 ? this.vao2 : this.vao1;
     },

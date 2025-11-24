@@ -32,11 +32,13 @@ export const AntHandling = {
 
         gl.useProgram(antHandlerProgram);
         let uniformLocations = this.uniformLocations = getUniformLocations(gl, antHandlerProgram,
-            ["u_time", "u_deltaTime", "u_texture", "u_canvasDimensions",
+            ["u_time", "u_deltaTime", "u_texture", "u_canvasDimensions", "u_textureDimensions",
                 "u_antSpeed", "u_rotationSpeed", "u_senseLength", "u_senseSpread", "u_senseSize"]);
 
         gl.uniform1i(uniformLocations["u_texture"], this.textureUnit);
         gl.uniform2f(uniformLocations["u_canvasDimensions"], canvasWidth, canvasHeight);
+        // Texture dimensions are half resolution (RGB8 texture)
+        gl.uniform2f(uniformLocations["u_textureDimensions"], canvasWidth * 0.5, canvasHeight * 0.5);
         gl.uniform1f(uniformLocations["u_antSpeed"], antParams.speed);
         gl.uniform1f(uniformLocations["u_senseSpread"], antParams.senseSpread * degToRad);
         gl.uniform1f(uniformLocations["u_senseLength"], antParams.senseLength);

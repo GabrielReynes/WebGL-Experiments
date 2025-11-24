@@ -4,6 +4,7 @@ uniform sampler2D u_texture;
 uniform uint u_time;
 uniform float u_deltaTime;
 uniform vec2 u_canvasDimensions;
+uniform vec2 u_textureDimensions;
 uniform float u_antSpeed;
 uniform float u_rotationSpeed;
 uniform float u_senseLength;
@@ -46,16 +47,29 @@ float sense_sum(vec2 pos, vec2 direction)
 {
     float sum = 0.0;
 
-    vec2 center_point = pos + direction * u_senseLength;
-    int center_x = int(center_point.x);
-    int center_y = int(center_point.y);
+    // Calculate center point in full-resolution coordinates and wrap to canvas
+    vec2 center_point = canvasContained(pos + direction * u_senseLength);
+    
+    // Convert to half-resolution texture coordinates (scale by 0.5)
+    vec2 texture_center = center_point * 0.5;
+    int center_x = int(texture_center.x);
+    int center_y = int(texture_center.y);
 
-    for (int x = -u_senseSize; x < u_senseSize; x++) {
+    // Sample in half-resolution space
+    // senseSize is in full-res pixels. To maintain same physical area in half-res,
+    // we need to scale it. But ensure we always sample at least the center pixel.
+    // If senseSize=1 (2x2 area in full-res), we want 1x1 area in half-res (senseSizeHalf=0, but use 1)
+    int senseSizeHalf = max(1, u_senseSize / 2);
+    for (int x = -senseSizeHalf; x < senseSizeHalf; x++) {
         int sample_x = center_x + x;
-        for (int y = -u_senseSize; y < u_senseSize; y++) {
+        for (int y = -senseSizeHalf; y < senseSizeHalf; y++) {
             int sample_y = center_y + y;
-//            vec2 conainedPos = canvasContained(vec2(sample_x, sample_y));
-            vec4 sampled = texture(u_texture, vec2(sample_x, sample_y) / u_canvasDimensions);
+            // Wrap coordinates to texture bounds
+            sample_x = int(mod(float(sample_x), u_textureDimensions.x));
+            sample_y = int(mod(float(sample_y), u_textureDimensions.y));
+            // Convert pixel coordinates to UV coordinates for half-resolution texture
+            vec2 uv = vec2(float(sample_x), float(sample_y)) / u_textureDimensions;
+            vec4 sampled = texture(u_texture, uv);
             sum += dot(sampled.rgb, a_color * 2.0 - 1.0);
         }
     }
